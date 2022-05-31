@@ -70,6 +70,8 @@ func run(ctx context.Context, cfg config) error {
 		}
 	}()
 
+	var lastScale float64
+
 	do := func() error {
 		screens, err := xrandr.Query(ctx)
 		if err != nil {
@@ -85,7 +87,7 @@ func run(ctx context.Context, cfg config) error {
 		w, h := screen.Resolution()
 
 		scale, ok := cfg.findScale(w, h)
-		if !ok {
+		if !ok || scale == lastScale {
 			return nil
 		}
 
@@ -95,8 +97,10 @@ func run(ctx context.Context, cfg config) error {
 			"height": strconv.Itoa(h),
 		}); err != nil {
 			log.Println("command error:", err)
+			return nil
 		}
 
+		lastScale = scale
 		return nil
 	}
 
