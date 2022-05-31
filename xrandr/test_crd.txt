@@ -1,0 +1,10 @@
+Screen 0: minimum 1 x 1, current 3456 x 2160, maximum 5120 x 3840
+screen connected 3456x2160+0+0 0mm x 0mm
+   5120x3840      0.00  
+   1600x1200      0.00  
+   3840x2160      0.00  
+   3840x2560      0.00  
+   5120x1440      0.00  
+   2160x3840      0.00  
+   What actually goes here? client resolution   0.00* 
+
