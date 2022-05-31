@@ -25,10 +25,10 @@ func TestCRD(t *testing.T) {
 		t.Fatal("cannot parse:", err)
 	}
 
-	v := autogold.Want("crd", []Screen{Screen{
-		Name:       "screen",
-		Connected:  true,
-		Resolution: "3456x2160+0+0",
+	v := autogold.Want("crd", Screens{Screen{
+		Name:      "screen",
+		Connected: true,
+		Dimension: "3456x2160+0+0",
 	}})
 	v.Equal(t, screens)
 }
@@ -41,16 +41,16 @@ func TestXWayland(t *testing.T) {
 		t.Fatal("cannot parse:", err)
 	}
 
-	v := autogold.Want("xwayland", []Screen{
+	v := autogold.Want("xwayland", Screens{
 		Screen{
-			Name:       "XWAYLAND0",
-			Connected:  true,
-			Resolution: "1600x900+0+1",
+			Name:      "XWAYLAND0",
+			Connected: true,
+			Dimension: "1600x900+0+1",
 		},
 		Screen{
-			Name:       "XWAYLAND8",
-			Connected:  true,
-			Resolution: "1920x1080+1600+0",
+			Name:      "XWAYLAND8",
+			Connected: true,
+			Dimension: "1920x1080+1600+0",
 		},
 	})
 	v.Equal(t, screens)
