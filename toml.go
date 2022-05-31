@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/pkg/errors"
@@ -22,11 +23,23 @@ func (n *number) UnmarshalText(t []byte) error {
 	return nil
 }
 
+type duration time.Duration
+
+func (d *duration) UnmarshalText(t []byte) error {
+	v, err := time.ParseDuration(string(t))
+	if err != nil {
+		return err
+	}
+	*d = duration(v)
+	return nil
+}
+
 type config struct {
-	Screen  string   `toml:"screen"`
-	Command string   `toml:"command"`
-	Events  []string `toml:"events"`
-	Scales  []scale  `toml:"scale"`
+	Screen   string   `toml:"screen"`
+	Command  string   `toml:"command"`
+	Debounce duration `toml:"debounce"`
+	Events   []string `toml:"events"`
+	Scales   []scale  `toml:"scale"`
 }
 
 func (cfg config) runCommand(ctx context.Context, extraEnv map[string]string) error {

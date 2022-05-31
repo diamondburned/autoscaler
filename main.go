@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/diamondburned/autoscaler/xrandr"
 	"github.com/pkg/errors"
@@ -69,7 +70,7 @@ func run(ctx context.Context, cfg config) error {
 		}
 	}()
 
-	for {
+	do := func() error {
 		screens, err := xrandr.Query(ctx)
 		if err != nil {
 			return errors.Wrap(err, "xrandr")
@@ -78,23 +79,49 @@ func run(ctx context.Context, cfg config) error {
 		screen, ok := screens.Find(cfg.Screen)
 		if !ok {
 			log.Println("missing screen", cfg.Screen)
-			continue
+			return nil
 		}
 
 		w, h := screen.Resolution()
 
 		scale, ok := cfg.findScale(w, h)
 		if !ok {
-			continue
+			return nil
 		}
 
-		err = cfg.runCommand(ctx, map[string]string{
+		if err := cfg.runCommand(ctx, map[string]string{
 			"scale":  strconv.FormatFloat(scale, 'f', -1, 64),
 			"width":  strconv.Itoa(w),
 			"height": strconv.Itoa(h),
-		})
-		if err != nil {
+		}); err != nil {
 			log.Println("command error:", err)
+		}
+
+		return nil
+	}
+
+	doDebounced := func() error {
+		debounce := time.NewTimer(time.Duration(cfg.Debounce))
+		defer debounce.Stop()
+
+		if err := do(); err != nil {
+			return err
+		}
+
+		// TODO: maybe combine this into 1 select by setting xevEvents to nil.
+		select {
+		case err := <-errCh:
+			return err
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-debounce.C:
+			return nil
+		}
+	}
+
+	for {
+		if err := doDebounced(); err != nil {
+			return err
 		}
 
 		select {
@@ -103,6 +130,7 @@ func run(ctx context.Context, cfg config) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-xevEvents:
+			// do
 		}
 	}
 }

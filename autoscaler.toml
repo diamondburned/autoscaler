@@ -4,7 +4,8 @@ command = """
 	gsettings set org.gnome.desktop.interface scaling-factor $scale
 	killall -SIGQUIT gnome-shell
 """
-events = ["RRScreenChangeNotify"]
+debounce = "3s"
+events   = ["RRScreenChangeNotify"]
 
 [[scale]]
 width = 1080
