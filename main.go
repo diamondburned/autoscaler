@@ -9,76 +9,13 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/diamondburned/autoscaler/xrandr"
-	"github.com/pelletier/go-toml/v2"
 	"github.com/pkg/errors"
 )
-
-type config struct {
-	Screen  string   `toml:"screen"`
-	Command string   `toml:"command"`
-	Events  []string `toml:"events"`
-	Scales  []scale  `toml:"scale"`
-}
-
-func (cfg config) runCommand(ctx context.Context, extraEnv map[string]string) error {
-	env := os.Environ()
-	for k, v := range extraEnv {
-		env = append(env, k+"="+v)
-	}
-
-	cmd := exec.CommandContext(ctx, "sh", "-c", cfg.Command)
-	cmd.Env = env
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	return cmd.Run()
-}
-
-// findScale finds the biggest scale.
-func (cfg config) findScale(w, h int) (scale, bool) {
-	for i := len(cfg.Scales) - 1; i >= 0; i-- {
-		scale := cfg.Scales[i]
-		if scale.Width != 0 && scale.Width > w {
-			continue
-		}
-		if scale.Height != 0 && scale.Height > h {
-			continue
-		}
-		return scale, true
-	}
-	return scale{}, false
-}
-
-type scale struct {
-	Width  int     `toml:"width"`
-	Height int     `toml:"height"`
-	Scale  float64 `toml:"scale"`
-}
-
-func readConfig(filename string) (config, error) {
-	var cfg config
-
-	f, err := os.Open(filename)
-	if err != nil {
-		return cfg, errors.Wrap(err, "cannot open config file")
-	}
-	defer f.Close()
-
-	if err := toml.NewDecoder(f).Decode(&cfg); err != nil {
-		return cfg, errors.Wrap(err, "cannot parse TOML config")
-	}
-
-	sort.Slice(cfg.Scales, func(i, j int) bool {
-		return cfg.Scales[i].Scale < cfg.Scales[j].Scale
-	})
-
-	return cfg, nil
-}
 
 var (
 	configPath = "autoscaler.toml"
@@ -123,8 +60,12 @@ func run(ctx context.Context, cfg config) error {
 		defer wg.Done()
 
 		if err := xevRoot(ctx, cfg.Events, xevEvents); err != nil {
-			errCh <- err
-			cancel()
+			select {
+			case <-ctx.Done():
+				return
+			case errCh <- err:
+				cancel()
+			}
 		}
 	}()
 
@@ -148,7 +89,7 @@ func run(ctx context.Context, cfg config) error {
 		}
 
 		err = cfg.runCommand(ctx, map[string]string{
-			"scale":  strconv.FormatFloat(scale.Scale, 'f', -1, 64),
+			"scale":  strconv.FormatFloat(scale, 'f', -1, 64),
 			"width":  strconv.Itoa(w),
 			"height": strconv.Itoa(h),
 		})
